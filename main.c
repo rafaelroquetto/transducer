@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #include "statemachine.h"
-#include "readline.h"
+#include "input.h"
 
 enum {
     MAX_TOKEN_SIZE = 32,
@@ -121,7 +121,6 @@ static void sigma9(char ch)
     printf("%c ", ch);
 }
 
-
 int main(int argc, char *argv[])
 {
     struct transition *t;
@@ -139,6 +138,7 @@ int main(int argc, char *argv[])
 
     /* eo -> e0 */
     add_transition(sm, e0, e0, ' ', NULL);
+    add_transition(sm, e0, e0, '\n', NULL);
 
     /* e0 -> e1 */
     add_range_transition(sm, e0, e1, 'A', 'Z', sigma1);
@@ -208,13 +208,18 @@ int main(int argc, char *argv[])
     add_transition(sm, e6, e0, '\n', NULL);
     add_epsilon_transition(sm, e6, e0, NULL);
 
-    input = read_line();
+    if (isatty(STDIN_FILENO))
+        printf("Running on interactive mode. Press (CTRL+D) to end\n\n");
+
+    input = read_input();
 
     sm_set_input_buffer(sm, input);
 
     rc = sm_exec(sm);
 
     sm_free(sm);
+
+    free(input);
 
     putchar('\n');
 
