@@ -12,10 +12,30 @@ enum {
     MAX_TOKENS = 100
 };
 
+enum States { e0, e1, e2, e3, e4, e5, e6, N_STATES };
+
 static int temp_n;
 static char temp_s[MAX_TOKEN_SIZE];
 static char id[MAX_TOKENS][MAX_TOKEN_SIZE];
 static char *ptr;
+
+static const char *reserved_words[] = {
+    "IF", "THEN", "ELSE", "GOTO", "LET",
+    "PRINT", "OF", "READ", "END", NULL
+};
+
+
+static int find_keyword(const char *word)
+{
+    int i;
+
+    for (i = 0; *(reserved_words + i); ++i) {
+        if (strcmp(word, *(reserved_words +i)) == 0)
+            return i;
+    }
+
+    return -1;
+}
 
 static int find_token(const char *token)
 {
@@ -56,6 +76,11 @@ static void sigma3(char ch)
 
     *ptr++ = 0;
 
+    if ((pos = find_keyword(temp_s)) >= 0) {
+        printf("P(%d) ", pos);
+        return;
+    }
+
     pos = find_token(temp_s);
 
     if (pos == -1) {
@@ -81,6 +106,22 @@ static void sigma6(char ch)
     printf("N(%d) ", temp_n);
 }
 
+static void sigma7(char ch)
+{
+    printf(":= ");
+}
+
+static void sigma8(char ch)
+{
+    printf(": ");
+}
+
+static void sigma9(char ch)
+{
+    printf("%c ", ch);
+}
+
+
 int main(int argc, char *argv[])
 {
     struct transition *t;
@@ -93,30 +134,79 @@ int main(int argc, char *argv[])
     int rc;
     int fstates[] = { 0 };
 
-    sm_set_nstates(sm, 3);
+    sm_set_nstates(sm, N_STATES);
     sm_set_fstates(sm, fstates, sizeof (fstates) / sizeof(int));
 
     /* eo -> e0 */
-    add_transition(sm, 0, 0, ' ', NULL);
+    add_transition(sm, e0, e0, ' ', NULL);
 
     /* e0 -> e1 */
-    add_range_transition(sm, 0, 1, 'A', 'Z', sigma1);
+    add_range_transition(sm, e0, e1, 'A', 'Z', sigma1);
 
     /* e1 -> e1 */
-    add_range_transition(sm, 1, 1, 'A', 'Z', sigma2);
-    add_range_transition(sm, 1, 1, '0', '9', sigma2);
+    add_range_transition(sm, e1, e1, 'A', 'Z', sigma2);
+    add_range_transition(sm, e1, e1, '0', '9', sigma2);
 
     /* e1 -> e0 */
-    add_epsilon_transition(sm, 1, 0, sigma3);
+    add_epsilon_transition(sm, e1, e0, sigma3);
 
     /* e0 -> e2 */
-    add_range_transition(sm, 0, 2, '0', '9', sigma4);
+    add_range_transition(sm, e0, e2, '0', '9', sigma4);
 
     /* e2 -> e2 */
-    add_range_transition(sm, 2, 2, '0', '9', sigma5);
+    add_range_transition(sm, e2, e2, '0', '9', sigma5);
 
     /* e2 -> e0 */
-    add_epsilon_transition(sm, 2, 0, sigma6);
+    add_epsilon_transition(sm, e2, e0, sigma6);
+
+    /* e0 -> e3 */
+    add_transition(sm, e0, e3, ':', NULL);
+
+    /* e3 -> e4 */
+    add_transition(sm, e3, e4, '=', NULL);
+
+    /* e3 -> e0 */
+    add_epsilon_transition(sm, e3, e0, sigma8);
+
+    /* e4 -> e0 */
+    add_epsilon_transition(sm, e4, e0, sigma7);
+
+    /* e0 -> e5 */
+    add_transition(sm, e0, e5, '+', sigma9);
+    add_transition(sm, e0, e5, '-', sigma9);
+    add_transition(sm, e0, e5, '*', sigma9);
+    add_transition(sm, e0, e5, '/', sigma9);
+    add_transition(sm, e0, e5, '(', sigma9);
+    add_transition(sm, e0, e5, ')', sigma9);
+    add_transition(sm, e0, e5, '>', sigma9);
+    add_transition(sm, e0, e5, '<', sigma9);
+    add_transition(sm, e0, e5, '=', sigma9);
+
+    /* e5 -> e0 */
+    add_epsilon_transition(sm, e5, e0, NULL);
+
+    /* e0 -> e6*/
+    add_transition(sm, e0, e6, '%', NULL);
+
+    /* e6 -> e6 */
+    add_transition(sm, e6, e6, '%', NULL);
+    add_transition(sm, e6, e6, '+', NULL);
+    add_transition(sm, e6, e6, '-', NULL);
+    add_transition(sm, e6, e6, '*', NULL);
+    add_transition(sm, e6, e6, '/', NULL);
+    add_transition(sm, e6, e6, '(', NULL);
+    add_transition(sm, e6, e6, ')', NULL);
+    add_transition(sm, e6, e6, '>', NULL);
+    add_transition(sm, e6, e6, '<', NULL);
+    add_transition(sm, e6, e6, '=', NULL);
+    add_transition(sm, e6, e6, ':', NULL);
+    add_transition(sm, e6, e6, ' ', NULL);
+    add_range_transition(sm, e6, e6, '0', '9', NULL);
+    add_range_transition(sm, e6, e6, 'A', 'Z', NULL);
+
+    /* e6 -> e0 */
+    add_transition(sm, e6, e0, '\n', NULL);
+    add_epsilon_transition(sm, e6, e0, NULL);
 
     input = read_line();
 
