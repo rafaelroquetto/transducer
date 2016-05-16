@@ -48,7 +48,17 @@ void byte_array_append(struct byte_array *b, const char *data, size_t size)
 
     memcpy(b->end, data, size);
     b->end += size;
-    b->size +=size;
+    b->size += size;
+}
+
+void byte_array_append_char(struct byte_array *b, char ch)
+{
+    byte_array_append(b, &ch, 1);
+}
+
+void byte_array_push(struct byte_array *b, char ch)
+{
+    byte_array_append(b, &ch, 1);
 }
 
 void byte_array_resize(struct byte_array *b, size_t capacity)
@@ -65,7 +75,6 @@ void byte_array_resize(struct byte_array *b, size_t capacity)
         panic("Not enough memory");
 
     b->data = ptr;
-    b->end = b->data + b->size;
     old_capacity = b->capacity;
     b->capacity = capacity;
 
@@ -74,6 +83,23 @@ void byte_array_resize(struct byte_array *b, size_t capacity)
     } else if (b->capacity > old_capacity) {
         bzero((b->data + old_capacity), capacity - old_capacity);
     }
+
+    b->end = b->data + b->size;
+}
+
+char byte_array_pop(struct byte_array *b)
+{
+    if (b->size == 0)
+        return 0;
+
+    char ch = *(b->end);
+
+    *(b->end) = 0;
+
+    b->end--;
+    b->size--;
+
+    return ch;
 }
 
 char * byte_array_data(struct byte_array *b)

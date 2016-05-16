@@ -8,6 +8,9 @@ void panic(const char *fmt, ...)
 {
     va_list ap;
 
+    fflush(stdout);
+    fflush(stderr);
+
     fprintf(stderr, "FATAL: ");
 
     va_start(ap, fmt);

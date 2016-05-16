@@ -143,9 +143,10 @@ struct transition * sm_epsilon_transition_new(int source_state, int target_state
     return sm_transition_new(EPSILON_TRANSITION, source_state, target_state);
 }
 
-void sm_transition_set_cb(struct transition *t, transition_callback cb)
+void sm_transition_set_cb(struct transition *t, transition_callback cb, void *data)
 {
     t->callback = cb;
+    t->data = data;
 }
 
 void sm_set_input_buffer(struct state_machine *sm, const char *buffer)
@@ -154,6 +155,7 @@ void sm_set_input_buffer(struct state_machine *sm, const char *buffer)
         free(sm->input);
 
     sm->input = strdup(buffer);
+    sm->head = sm->input;
 }
 
 inline int sm_has_state(struct state_machine *sm, int state)
@@ -188,90 +190,80 @@ static struct transition * find_transition(struct state_machine *sm,
 
 int sm_exec(struct state_machine *sm)
 {
-    char *ptr;
     char ch;
-    int current_state;
     struct transition *t;
 
-    ptr = sm->input;
+    sm->cstate = sm->istate;
 
-    current_state = sm->istate;
-
-    while (*ptr) {
+    while (*(sm->head)) {
 
         if (DEBUG)
-            printf("current state: %d; input = '%c'\n", current_state, *ptr);
+            printf("current state: %d; input = '%c'\n", sm->cstate, *(sm->head));
 
-        t = find_transition(sm, current_state, *ptr);
+        t = find_transition(sm, sm->cstate, *(sm->head));
 
-        if (t == NULL) {
-            printf("Invalid input\n");
+        if (t == NULL)
             return -1;
-        }
 
         if (t->callback)
-            t->callback(*ptr);
+            t->callback(*(sm->head), t->data);
 
-        current_state = t->target_state;
+        sm->cstate = t->target_state;
 
         if (t->token != EPSILON_TRANSITION)
-            ++ptr;
+            ++(sm->head);
     }
 
     /* input is fully consumed, check for a final
      * epsilon transition
      */
-    t = get_transition(sm, current_state, EPSILON_TRANSITION);
+    t = get_transition(sm, sm->cstate, EPSILON_TRANSITION);
 
     if (t != NULL) {
         if (t->callback)
-            t->callback((char) 0);
+            t->callback((char) 0, t->data);
 
-        current_state = t->target_state;
+        sm->cstate = t->target_state;
     }
 
     if (DEBUG)
-        printf("current state: %d;\n", current_state);
+        printf("current state: %d;\n", sm->cstate);
 
-    if (sm_is_final_state(sm, current_state)) {
-        printf("Input accepted\n");
+    if (sm_is_final_state(sm, sm->cstate))
         return 0;
-    }
-
-    printf("Invalid input\n");
 
     return -1;
 }
 
 void add_transition(struct state_machine *sm, int sstate, int tstate,
-        char ch, transition_callback callback)
+        char ch, transition_callback callback, void *data)
 {
     struct transition *t;
 
     t = sm_transition_new(ch, sstate, tstate);
-    sm_transition_set_cb(t, callback);
+    sm_transition_set_cb(t, callback, data);
 
     sm_add_transition(sm, t);
 }
 
 void add_range_transition(struct state_machine *sm, int sstate, int tstate,
-        char start, char end, transition_callback callback)
+        char start, char end, transition_callback callback, void *data)
 {
     char ch;
 
     assert(start < end);
 
     for (ch = start; ch <= end; ++ch)
-        add_transition(sm, sstate, tstate, ch, callback);
+        add_transition(sm, sstate, tstate, ch, callback, data);
 }
 
 void add_epsilon_transition(struct state_machine *sm,
-        int source_state, int target_state, transition_callback callback)
+        int source_state, int target_state, transition_callback callback, void *data)
 {
     struct transition *t;
 
     t = sm_epsilon_transition_new(source_state, target_state);
-    sm_transition_set_cb(t, callback);
+    sm_transition_set_cb(t, callback, data);
 
     sm_add_transition(sm, t);
 }
